@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 97d5adf494d7b3d48a5f39dfc297a84c, type: 3}
+  m_Name: ARCombatAssetRegistry
+  m_EditorClassIdentifier: Assembly-CSharp::ARCombatAssetRegistry
+  fpCharacterPrefab: {fileID: 2751027687307977091, guid: 19eadcf8fbed56b4da77ca94c1b4145f, type: 3}
+  handgunPrefab: {fileID: 189091626145577203, guid: 464d2b315a1ed6b408948cc2fc04e8f7, type: 3}
+  zombiePrefab: {fileID: 4803014352389650695, guid: 06cb2b131fe009c47a523671a8fa9ed8, type: 3}
+  uiCanvasPrefab: {fileID: 5393623835024644669, guid: 48d7771c50bd625489d38055025597a3, type: 3}
+  inputActions: {fileID: -944628639613478452, guid: d4580ddb403296c4e8150653f661069e, type: 3}
+  hurtVoice: {fileID: 8300000, guid: 29fbc6087cf030049a514e04700f27fb, type: 3}
+  endClip: {fileID: 32900000, guid: cef7f75fc7f57ef4191d68f2ed91fd13, type: 3}
+  robotoBoldFont: {fileID: 11400000, guid: 45b1ec5744ef249478cc066079c5fd63, type: 2}
+  medievalSharpFont: {fileID: 11400000, guid: e48d81020762c7946ac70f95631c3c78, type: 2}
+  healthFill: {fileID: 5645082663091813469, guid: 968132e19729f5b4da81d2a566f2bb67, type: 3}
+  healthTrack: {fileID: 7836010187114481851, guid: 029b015ae82cabc4fa590ed60e7d03ba, type: 3}
+  settingsFrame: {fileID: 21300000, guid: e413aa4ab40030241b3a6b5799560df1, type: 3}
+  settingsWell: {fileID: 21300000, guid: 0ebfce6623f960147a8575fee579e358, type: 3}
+  settingsGear: {fileID: 21300000, guid: 65d3184f12ac06e4587af4c43f8a0418, type: 3}
+  settingsClose: {fileID: 21300000, guid: 86991b9a2f48b4a4196cb56e183aee85, type: 3}
+  settingsTrack: {fileID: 1102378827788902996, guid: 6d85622855d947f498cda93c3ce38e39, type: 3}
+  settingsFill: {fileID: -3014748121592047622, guid: 4bfacbb5fc137ce4a98024113a2d9d1e, type: 3}
+  settingsHandle: {fileID: 6796164672518535661, guid: 92fe0281b5672eb4d8792b91bd3e7d6e, type: 3}
+  settingsToggle: {fileID: 21300000, guid: e290d14bed8dad64182463ffbd189a8f, type: 3}
+  settingsMark: {fileID: 21300000, guid: ba1e7127ced8e62408cc4cc7b28a58c4, type: 3}
+  settingsButton: {fileID: 5300590569206946129, guid: c2636267bd3ba3b47aa8f03ed72f3778, type: 3}
+  settingsButtonHover: {fileID: 1867746658213947531, guid: ca663c96099365c468f89ef28c315cf4, type: 3}
+  settingsButtonPressed: {fileID: 7348062147863417607, guid: a90be1f63489a614ebddd20c85481360, type: 3}
