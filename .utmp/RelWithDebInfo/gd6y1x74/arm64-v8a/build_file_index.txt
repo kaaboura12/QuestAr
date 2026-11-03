@@ -1,0 +1,2 @@
+C:\Users\Negza\Desktop\Unity\Project Untiy AR\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\CMakeLists.txt
+C:\Users\Negza\Desktop\Unity\Project Untiy AR\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\GameActivity\CMakeLists.txt
