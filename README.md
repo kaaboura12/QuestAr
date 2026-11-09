@@ -91,52 +91,36 @@ Cette branche regroupe l'ensemble des développements et corrections majeurs :
 
 ---
 
-## 👤 Partie Negzaoui — Rôle, Contributions & Réalisations Détaillées
+## 👤 Rôle & Réalisations de Negzaoui (Partie Negzaoui)
 
-La branche **`Negzaoui`** représente l'étape clé de consolidation, de stabilisation AR, d'intégration de la mission finale et d'optimisation matérielle du jeu QuestAR. Voici le détail complet des modules et fonctionnalités conçus et développés dans cette partie :
+Dans le cadre du projet **QuestAR**, **Negzaoui** a assuré la réalisation de modules clés et le rôle central d'intégration :
 
-### 1. 🔗 Chaînage Narratif & Intégration de l'Énigme Finale (`Mission 5`)
-- **Transition Fluide** : Interconnexion directe entre la fin de la vague du Niveau 4 de combat (`ARGameplay`) et le déclenchement de la scène d'énigme (`Mission5_Enigme`).
-- **Préservation de la Session Joueur** : Conservation des identifiants et des scores RPG sans rechargement lourd ni déconnexion intempestive.
-- **Gestion Stricte de l'Échec (Game Over)** : Verrouillage de la boucle de jeu pour garantir que la mort du joueur fige la partie sur l'écran Game Over avec possibilité de recommencer, sans transition non sollicitée vers l'énigme.
+### 1. 🔐 Système d'Authentification Complet (Login)
+- **Développement intégral du module d'authentification** : Système de connexion sécurisée et gestion des comptes utilisateurs.
+- **Intégration de VisageID** : Authentification biométrique par reconnaissance faciale sur mobile, complétée par un mode profil joueur / invité.
+- **Gestion de Session Globale** : Création de la persistance des données du joueur (`ARPlayerSession`) transmises à travers toutes les scènes (affichage du nom du joueur sur le HUD de combat, conservation des scores et bouton de déconnexion dynamique).
 
-### 2. 🎯 Ancrage AR Réaliste & Élimination des Zombies Flottants
-- **Filtrage Géométrique AR Foundation** : Refonte de l'algorithme de spawn dans `ARZombieSpawner.cs` pour restreindre la génération des ennemis aux seuls plans horizontaux inférieurs (`PlaneClassification.Floor`).
-- **Contrôle d'Élévation Relative** : Vérification stricte de la hauteur par rapport à la caméra du joueur afin d'empêcher les zombies d'apparaître en lévitation dans l'air ou accrochés aux murs et aux plafonds.
-- **Snap au Sol Physique** : Projection verticale précise sur le maillage scanné pour assurer une marche naturelle et stable dans l'espace réel.
+### 2. 🔄 Intégration Globale Inter-Membres du Groupe
+- **Fusion et synchronisation complète** des contributions de tous les membres de l'équipe au sein d'une architecture Unity unifiée, stable et sans conflit.
+- **Orchestration du flux de jeu de bout en bout** :
+  $$\text{Login VisageID} \longrightarrow \text{Menu Principal} \longrightarrow \text{Survie AR (Niveaux 1 à 4)} \longrightarrow \text{Énigme Finale} \longrightarrow \text{Victoire Totale}$$
+- **Harmonisation technique** : Résolution des conflits de versions de scènes, standardisation des Build Settings Android et validation du pipeline d'exécution.
 
-### 3. 💡 Exploitation Avancée des Capteurs Mobiles (Hardware Sensors)
-- **Capteur de Lumière Ambiante (Lux en continu)** :
-  - Correction de l'activation du module `requestedLightEstimation` dans `ARCameraManager`.
-  - Résolution du blocage à 0 Lux pour permettre un calcul continu et fidèle de la luminosité ambiante de la pièce.
-- **Mécanique de Flash Tactique & Cooldown Équilibré** :
-  - Conception du système de torche d'urgence permettant d'aveugler temporairement les zombies (Stun de 5 secondes).
-  - Implémentation d'un délai de recharge obligatoire de **10 secondes (Cooldown)** afin d'éviter le spamming, accompagné d'un décompte visuel dynamique directement incrusté sur le bouton du HUD.
-- **Détection Audio & Bruit Ambiant** :
-  - Développement et calibrage du module `ARMicDetectionManager` exploitant le microphone pour capter les décibels et déclencher des réactions chez les ennemis.
+### 3. 🎯 Optimisations AR, Capteurs & Finitions
+- **Correction critique du sol AR** : Calibrage précis de la détection de plan horizontal pour que les zombies apparaissent exclusivement sur le sol réel (suppression des zombies flottant dans les airs ou collés aux murs).
+- **Exploitation avancée des capteurs** : Correction de l'estimation de la lumière en temps réel (Lux continu sur `ARCameraManager`) et implémentation du système de cooldown (10 secondes) pour la torche/flash avec feedback visuel.
+- **Refonte UI de l'Énigme** : Adaptation du clavier tactile (Keypad) au format paysage (Landscape) et correction des shaders de matériaux roses incompatibles.
+- **Écran de Victoire Totale** : Conception de l'interface de triomphe finale avec tableau de bord des statistiques RPG, effets sonores et navigation de fin de partie.
 
-### 4. 📱 Ergonomie Mobile UI/UX & Compatibilité Shaders
-- **Refonte du Clavier Numérique (Keypad UI)** :
-  - Adaptation complète de l'interface de saisie du code secret pour le mode **Paysage (Landscape)** : redimensionnement des touches, centrage dynamique, et visibilité parfaite des cases de saisie sans superposition sur le texte narratif.
-- **Éradication des Shaders Roses (Incompatibilités URP/Built-in)** :
-  - Identification et correction des matériaux défaillants (ex: `PlaneCyan`, caisses de ravitaillement `SciFiCrate`) pour assurer un rendu graphique impeccable sans textures magenta sur mobile.
-
-### 5. 🏆 Dashboard de Victoire Totale
-- **Célébration Visuelle & Audio** :
-  - Création d'une interface de triomphe haut de gamme ornée de lauriers dorés et accompagnée d'un thème musical victorieux.
-- **Synthèse RPG & Contrôles** :
-  - Affichage récapitulatif des performances du joueur (temps, vagues survécues, énigme résolue) avec boutons interactifs fiables (`REJOUER` pour relancer une partie et `DÉCONNEXION` pour sécuriser la session).
-
----
-
-### 📂 Principaux Fichiers & Scripts pris en charge par Negzaoui :
-| Fichier / Script | Rôle & Apport Technique |
+### 📂 Principaux Modules & Scripts pris en charge par Negzaoui :
+| Module / Script | Rôle & Apport Technique |
 | :--- | :--- |
-| `QuestARLevelManager.cs` | Orchestration des 4 niveaux de combat, transition vers l'énigme et gestion du Game Over / Victoire. |
-| `ARZombieSpawner.cs` | Algorithme de détection du sol réel et spawn sécurisé des entités AR. |
-| `HamaFlashStunManager.cs` | Contrôle de la torche matérielle, calcul des Lux et temporisateur de Cooldown de 10s. |
-| `ARMobileCombatControls.cs` | Interface tactile de combat (Visée, Tir, Recharge, déclenchement du Flash avec chrono). |
-| `CodePuzzle.cs` & `IndicesFlottants.cs` | Logique de l'énigme finale, gestion du Keypad en mode paysage et placement des chroniques. |
-| `ARMicDetectionManager.cs` | Capture et traitement du signal sonore via le microphone Android. |
-| `Mission5_Enigme.unity` | Scène complète d'escape game AR avec énigmes visuelles et audio. |
+| `VisageID_Auth` | Système complet de login, reconnaissance faciale et persistance de session joueur. |
+| `QuestARLevelManager.cs` | Intégration globale, enchaînement des 4 niveaux de combat vers l'énigme et gestion de fin de partie. |
+| `ARZombieSpawner.cs` | Algorithme de détection de sol réel (`Floor`) pour un spawn propre sans zombies flottants. |
+| `HamaFlashStunManager.cs` | Gestion du capteur de luminosité (Lux) et système de Cooldown (10s) pour la torche. |
+| `ARPlayerSessionHud.cs` & `MainMenuController.cs` | Synchronisation de l'identité du joueur entre le menu, le HUD et la déconnexion. |
+| `CodePuzzle.cs` & `IndicesFlottants.cs` | Adaptation ergonomique du clavier en mode paysage et synchronisation des chroniques. |
+| `Mission5_Enigme.unity` | Intégration et raccordement de la scène d'énigme finale à l'architecture globale. |
+
 
