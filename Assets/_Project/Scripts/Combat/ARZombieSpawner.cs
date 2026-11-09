@@ -268,7 +268,7 @@ public class ARZombieSpawner : MonoBehaviour
                 if (scanStatusText != null)
                 {
                     scanStatusText.text =
-                        $"<color=#55FF77>SOL HORIZONTAL DÉTECTÉ !</color>\nVerrouillage du terrain ({Mathf.Clamp01(scanProgress) * 100f:F0}%)...";
+                        $"<color=#55FF77>✓ SOL DÉGAGÉ DÉTECTÉ !</color>\nVerrouillage du terrain ({Mathf.Clamp01(scanProgress) * 100f:F0}%)... Préparez-vous !";
                 }
             }
             else if (Application.isEditor)
@@ -282,12 +282,12 @@ public class ARZombieSpawner : MonoBehaviour
             else
             {
                 // Tant qu'un vrai sol horizontal n'est pas détecté, on plafonne la barre à 75%
-                // pour laisser le joueur pointer le sol ou cliquer sur "SOL PRÊT - LANCER LA VAGUE"
+                // pour laisser le joueur se déplacer vers une zone vide ou cliquer sur le bouton
                 scanProgress = Mathf.Min(0.75f, scanProgress + Time.deltaTime * 0.15f);
                 if (scanStatusText != null)
                 {
                     scanStatusText.text =
-                        "Inclinez légèrement le téléphone vers le SOL vide devant vous\n(ou appuyez sur le bouton vert ci-dessous pour commencer)";
+                        "Déplacez-vous vers un espace vide au sol pour commencer à jouer.\n<size=19><color=#FFDD55>Pointez la caméra vers le sol libre devant vous</color></size>";
                 }
             }
 
@@ -509,11 +509,11 @@ public class ARZombieSpawner : MonoBehaviour
         titleGo.transform.SetParent(card, false);
         var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
         titleTmp.font = font;
-        titleTmp.text = $"NIVEAU {QuestARLevelManager.CurrentLevel} - DÉTECTION DU SOL AR";
-        titleTmp.fontSize = 30f;
+        titleTmp.text = $"⚠️ ZONE LIBRE REQUISE (NIVEAU {QuestARLevelManager.CurrentLevel})";
+        titleTmp.fontSize = 28f;
         titleTmp.fontStyle = FontStyles.Bold;
         titleTmp.alignment = TextAlignmentOptions.Center;
-        titleTmp.color = new Color(0.35f, 0.92f, 1f, 1f);
+        titleTmp.color = new Color(1f, 0.85f, 0.25f, 1f);
         titleTmp.rectTransform.anchorMin = new Vector2(0f, 0.72f);
         titleTmp.rectTransform.anchorMax = new Vector2(1f, 0.96f);
         titleTmp.rectTransform.offsetMin = Vector2.zero;
@@ -524,8 +524,8 @@ public class ARZombieSpawner : MonoBehaviour
         statusGo.transform.SetParent(card, false);
         scanStatusText = statusGo.AddComponent<TextMeshProUGUI>();
         scanStatusText.font = font;
-        scanStatusText.text = "Pointez le téléphone vers un espace vide au sol\npour calibrer le terrain...";
-        scanStatusText.fontSize = 22f;
+        scanStatusText.text = "Déplacez-vous vers un espace vide au sol pour commencer à jouer.\n<size=19><color=#AAAAAA>(Pointez la caméra vers le sol dégagé, loin des obstacles)</color></size>";
+        scanStatusText.fontSize = 21f;
         scanStatusText.alignment = TextAlignmentOptions.Center;
         scanStatusText.color = Color.white;
         scanStatusText.rectTransform.anchorMin = new Vector2(0.05f, 0.38f);
@@ -572,7 +572,7 @@ public class ARZombieSpawner : MonoBehaviour
         btnTxtGo.transform.SetParent(validateFloorBtnRect, false);
         var btnTxt = btnTxtGo.AddComponent<TextMeshProUGUI>();
         btnTxt.font = font;
-        btnTxt.text = "SOL PRÊT - LANCER LA VAGUE";
+        btnTxt.text = "ZONE DÉGAGÉE PRÊTE - JOUER";
         btnTxt.fontSize = 21f;
         btnTxt.fontStyle = FontStyles.Bold;
         btnTxt.alignment = TextAlignmentOptions.Center;
