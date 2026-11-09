@@ -93,34 +93,27 @@ Cette branche regroupe l'ensemble des développements et corrections majeurs :
 
 ## 👤 Rôle & Réalisations de Negzaoui (Partie Negzaoui)
 
-Dans le cadre du projet **QuestAR**, **Negzaoui** a assuré la réalisation de modules clés et le rôle central d'intégration :
+Dans le cadre du projet **QuestAR**, **Negzaoui** a pris en charge le système d'authentification complet et le rôle central d'intégration globale inter-membres :
 
 ### 1. 🔐 Système d'Authentification Complet (Login)
-- **Développement intégral du module d'authentification** : Système de connexion sécurisée et gestion des comptes utilisateurs.
-- **Intégration de VisageID** : Authentification biométrique par reconnaissance faciale sur mobile, complétée par un mode profil joueur / invité.
-- **Gestion de Session Globale** : Création de la persistance des données du joueur (`ARPlayerSession`) transmises à travers toutes les scènes (affichage du nom du joueur sur le HUD de combat, conservation des scores et bouton de déconnexion dynamique).
+- **Développement intégral du module d'authentification** : Conception et mise en place de la scène `VisageID_Auth_Scene` pour la gestion complète des comptes et des accès.
+- **Intégration de VisageID** : Implémentation de la reconnaissance faciale biométrique sur mobile, avec option alternative de connexion via profil joueur / invité.
+- **Gestion de Session Globale** : Création du système de persistance des données joueur (`ARPlayerSession`) garantissant le transfert de l'identité du joueur à travers toutes les scènes du jeu (affichage du nom sur le HUD de combat, synchronisation des sessions et bouton de déconnexion sécurisé).
 
 ### 2. 🔄 Intégration Globale Inter-Membres du Groupe
-- **Fusion et synchronisation complète** des contributions de tous les membres de l'équipe au sein d'une architecture Unity unifiée, stable et sans conflit.
+- **Fusion et synchronisation complète de l'équipe** : Centralisation et intégration harmonieuse des différents modules développés par les membres du groupe (Combat AR, Niveaux de survie, Scène Énigme, UI) au sein d'une seule architecture Unity stable et unifiée.
 - **Orchestration du flux de jeu de bout en bout** :
   $$\text{Login VisageID} \longrightarrow \text{Menu Principal} \longrightarrow \text{Survie AR (Niveaux 1 à 4)} \longrightarrow \text{Énigme Finale} \longrightarrow \text{Victoire Totale}$$
-- **Harmonisation technique** : Résolution des conflits de versions de scènes, standardisation des Build Settings Android et validation du pipeline d'exécution.
+- **Harmonisation technique & Résolution de conflits** : Standardisation des Build Settings Android multi-scènes, résolution des conflits Git et vérification de la compatibilité globale du projet pour le build mobile final.
 
-### 3. 🎯 Optimisations AR, Capteurs & Finitions
-- **Correction critique du sol AR** : Calibrage précis de la détection de plan horizontal pour que les zombies apparaissent exclusivement sur le sol réel (suppression des zombies flottant dans les airs ou collés aux murs).
-- **Exploitation avancée des capteurs** : Correction de l'estimation de la lumière en temps réel (Lux continu sur `ARCameraManager`) et implémentation du système de cooldown (10 secondes) pour la torche/flash avec feedback visuel.
-- **Refonte UI de l'Énigme** : Adaptation du clavier tactile (Keypad) au format paysage (Landscape) et correction des shaders de matériaux roses incompatibles.
-- **Écran de Victoire Totale** : Conception de l'interface de triomphe finale avec tableau de bord des statistiques RPG, effets sonores et navigation de fin de partie.
-
-### 📂 Principaux Modules & Scripts pris en charge par Negzaoui :
-| Module / Script | Rôle & Apport Technique |
+### 📂 Modules & Scripts Principaux — Partie Negzaoui :
+| Module / Script | Rôle & Responsabilité |
 | :--- | :--- |
-| `VisageID_Auth` | Système complet de login, reconnaissance faciale et persistance de session joueur. |
-| `QuestARLevelManager.cs` | Intégration globale, enchaînement des 4 niveaux de combat vers l'énigme et gestion de fin de partie. |
-| `ARZombieSpawner.cs` | Algorithme de détection de sol réel (`Floor`) pour un spawn propre sans zombies flottants. |
-| `HamaFlashStunManager.cs` | Gestion du capteur de luminosité (Lux) et système de Cooldown (10s) pour la torche. |
-| `ARPlayerSessionHud.cs` & `MainMenuController.cs` | Synchronisation de l'identité du joueur entre le menu, le HUD et la déconnexion. |
-| `CodePuzzle.cs` & `IndicesFlottants.cs` | Adaptation ergonomique du clavier en mode paysage et synchronisation des chroniques. |
-| `Mission5_Enigme.unity` | Intégration et raccordement de la scène d'énigme finale à l'architecture globale. |
+| `VisageID_Auth_Scene` | Scène d'authentification complète avec reconnaissance faciale et sélection de profil. |
+| `VisageID` & Auth Controllers | Gestion de la vérification biométrique, création de compte et validation d'accès. |
+| `ARPlayerSession.cs` | Singleton de session globale conservant les données et l'état du joueur connecté. |
+| `ARPlayerSessionHud.cs` & `MainMenuController.cs` | Transmission de l'identité joueur dans le menu et le HUD de jeu avec gestion de la déconnexion. |
+| Architecture d'Intégration & Build Pipeline | Liaisons entre scènes, synchronisation des modules du groupe et configuration des Build Settings. |
+
 
 
