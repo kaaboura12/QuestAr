@@ -51,6 +51,13 @@ public class ARZombieSpawner : MonoBehaviour
 
     private void Awake()
     {
+        // Forcer strictement l'orientation Paysage (Landscape) pour le combat AR
+        Screen.orientation = ScreenOrientation.LandscapeLeft;
+        Screen.autorotateToPortrait = false;
+        Screen.autorotateToPortraitUpsideDown = false;
+        Screen.autorotateToLandscapeLeft = true;
+        Screen.autorotateToLandscapeRight = true;
+
         DisableTemplateObjectSpawners();
 
         if (zombiePrefab == null)
@@ -79,6 +86,12 @@ public class ARZombieSpawner : MonoBehaviour
 
         planeManager = Object.FindAnyObjectByType<ARPlaneManager>();
         raycastManager = Object.FindAnyObjectByType<ARRaycastManager>();
+
+        // FORCER ARCore à détecter UNIQUEMENT les sols horizontaux (aucun mur, aucune porte !)
+        if (planeManager != null)
+        {
+            planeManager.requestedDetectionMode = PlaneDetectionMode.Horizontal;
+        }
 
         FixPinkPlanesInScene();
         StartCoroutine(FloorScanThenSpawnRoutine());
@@ -172,10 +185,10 @@ public class ARZombieSpawner : MonoBehaviour
         floorY = camY - DefaultCameraToFloorHeight;
         bool foundFloor = false;
 
-        // 1. Tester ARRaycastManager vers le bas de l'écran uniquement sur des plans horizontaux (HorizontalUp)
+        // 1. Tester ARRaycastManager vers le bas de l'écran en mode Paysage (centre horizontal, quart inférieur)
         if (raycastManager != null)
         {
-            Vector2 screenPt = new Vector2(Screen.width * 0.5f, Screen.height * 0.30f);
+            Vector2 screenPt = new Vector2(Screen.width * 0.5f, Screen.height * 0.22f);
             if (raycastManager.Raycast(screenPt, arHits, TrackableType.PlaneWithinPolygon | TrackableType.PlaneEstimated))
             {
                 for (int i = 0; i < arHits.Count; i++)
@@ -185,8 +198,8 @@ public class ARZombieSpawner : MonoBehaviour
                         continue;
 
                     float hitY = arHits[i].pose.position.y;
-                    // Ignorer les tables / chaises trop hautes : le vrai sol est au moins 0.70m sous le téléphone
-                    if (hitY <= camY - 0.70f)
+                    // Ignorer les tables / chaises / meubles (75cm-85cm) : le vrai sol est au moins 0.85m sous la caméra
+                    if (hitY <= camY - 0.85f)
                     {
                         floorY = hitY;
                         foundFloor = true;
@@ -211,7 +224,7 @@ public class ARZombieSpawner : MonoBehaviour
                     continue;
 
                 float py = plane.transform.position.y;
-                if (py <= camY - 0.70f && py < lowestY)
+                if (py <= camY - 0.85f && py < lowestY)
                 {
                     lowestY = py;
                 }
@@ -224,8 +237,8 @@ public class ARZombieSpawner : MonoBehaviour
             }
         }
 
-        // Sécurité : maintenir le sol dans une plage réaliste sous la caméra (jamais à hauteur des yeux !)
-        floorY = Mathf.Clamp(floorY, camY - 1.80f, camY - 1.15f);
+        // Sécurité absolue : maintenir le sol dans une plage réaliste sous la caméra (jamais à hauteur des yeux !)
+        floorY = Mathf.Clamp(floorY, camY - 1.85f, camY - 1.20f);
         return foundFloor;
     }
 
@@ -298,7 +311,7 @@ public class ARZombieSpawner : MonoBehaviour
             candidateFloorY = camYNow - DefaultCameraToFloorHeight;
         }
 
-        DetectedFloorY = Mathf.Clamp(candidateFloorY, camYNow - 1.80f, camYNow - 1.15f);
+        DetectedFloorY = Mathf.Clamp(candidateFloorY, camYNow - 1.85f, camYNow - 1.20f);
         calibratedFloorOffsetFromCam = DetectedFloorY - camYNow;
         lockedRealArFloorPlane = foundRealPlane;
         IsFloorCalibrated = true;
@@ -382,7 +395,7 @@ public class ARZombieSpawner : MonoBehaviour
         if (TryFindLowestHorizontalFloorY(out float trackedFloorY))
         {
             DetectedFloorY = Mathf.Lerp(DetectedFloorY, trackedFloorY, Time.deltaTime * 4f);
-            calibratedFloorOffsetFromCam = Mathf.Clamp(DetectedFloorY - playerCam.position.y, -1.80f, -1.15f);
+            calibratedFloorOffsetFromCam = Mathf.Clamp(DetectedFloorY - playerCam.position.y, -1.85f, -1.20f);
             lockedRealArFloorPlane = true;
         }
         else if (!lockedRealArFloorPlane)
@@ -393,7 +406,7 @@ public class ARZombieSpawner : MonoBehaviour
         else
         {
             // Empêcher le sol de jamais passer à hauteur des yeux si la caméra AR bouge
-            DetectedFloorY = Mathf.Clamp(DetectedFloorY, playerCam.position.y - 1.85f, playerCam.position.y - 1.15f);
+            DetectedFloorY = Mathf.Clamp(DetectedFloorY, playerCam.position.y - 1.85f, playerCam.position.y - 1.20f);
         }
     }
 

@@ -264,7 +264,7 @@ public class HamaZombieAI : MonoBehaviour
         float rawFloorY = ARZombieSpawner.IsFloorCalibrated
             ? ARZombieSpawner.DetectedFloorY
             : (playerCam.position.y - 1.45f);
-        p.y = Mathf.Clamp(rawFloorY, playerCam.position.y - 1.85f, playerCam.position.y - 1.15f);
+        p.y = Mathf.Clamp(rawFloorY, playerCam.position.y - 1.85f, playerCam.position.y - 1.20f);
         transform.position = p;
 
         Vector3 currentPos = transform.position;

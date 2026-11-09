@@ -138,6 +138,13 @@ public class QuestARLevelManager : MonoBehaviour
         KillsInCurrentLevel = 0;
         IsTransitioning = false;
         IsGameWon = false;
+
+        // Verrouiller strictement le mode Paysage (Landscape) pour le combat AR
+        Screen.orientation = ScreenOrientation.LandscapeLeft;
+        Screen.autorotateToPortrait = false;
+        Screen.autorotateToPortraitUpsideDown = false;
+        Screen.autorotateToLandscapeLeft = true;
+        Screen.autorotateToLandscapeRight = true;
     }
 
     private void Start()
