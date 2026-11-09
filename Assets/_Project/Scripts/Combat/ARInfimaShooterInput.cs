@@ -385,6 +385,7 @@ public class ARInfimaShooterInput : MonoBehaviour
     void Fire()
     {
         lastShotTime = Time.time;
+        ARMicDetectionManager.NotifyWeaponShot();
         weapon.Fire();
         bool isHeavyWeapon = weapon.IsAutomatic() ||
             weapon.gameObject.name.IndexOf("AR", System.StringComparison.OrdinalIgnoreCase) >= 0;

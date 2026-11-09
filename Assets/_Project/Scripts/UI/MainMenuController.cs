@@ -233,6 +233,7 @@ public class MainMenuController : MonoBehaviour
             playButton.onClick.AddListener(() =>
             {
                 playButton.interactable = false;
+                QuestARLevelManager.ResetToLevelOne();
                 GameplayTransition.Begin(gameplaySceneName);
             });
         }

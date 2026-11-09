@@ -35,26 +35,44 @@ public class AndroidVibratePermissionPostProcessor : IPostGenerateGradleAndroidP
                     continue;
 
                 bool hasVibrate = false;
+                bool hasRecordAudio = false;
                 foreach (XmlNode child in manifestNode.ChildNodes)
                 {
                     if (child.Name == "uses-permission")
                     {
                         var nameAttr = child.Attributes?["android:name"];
-                        if (nameAttr != null && nameAttr.Value == "android.permission.VIBRATE")
+                        if (nameAttr != null)
                         {
-                            hasVibrate = true;
-                            break;
+                            if (nameAttr.Value == "android.permission.VIBRATE")
+                                hasVibrate = true;
+                            if (nameAttr.Value == "android.permission.RECORD_AUDIO")
+                                hasRecordAudio = true;
                         }
                     }
                 }
 
+                bool modified = false;
                 if (!hasVibrate)
                 {
                     XmlElement permission = doc.CreateElement("uses-permission");
                     permission.SetAttribute("name", "http://schemas.android.com/apk/res/android", "android.permission.VIBRATE");
                     manifestNode.AppendChild(permission);
-                    doc.Save(manifestPath);
+                    modified = true;
                     Debug.Log($"[QuestAR] Added android.permission.VIBRATE to {manifestPath}");
+                }
+
+                if (!hasRecordAudio)
+                {
+                    XmlElement permission = doc.CreateElement("uses-permission");
+                    permission.SetAttribute("name", "http://schemas.android.com/apk/res/android", "android.permission.RECORD_AUDIO");
+                    manifestNode.AppendChild(permission);
+                    modified = true;
+                    Debug.Log($"[QuestAR] Added android.permission.RECORD_AUDIO to {manifestPath}");
+                }
+
+                if (modified)
+                {
+                    doc.Save(manifestPath);
                 }
             }
             catch (System.Exception ex)

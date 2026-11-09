@@ -274,6 +274,9 @@ public class ARInfimaArmsInstaller : MonoBehaviour
         if (playerCharacter.GetInventory() is not ARInfimaWeaponInventory weaponInventory)
             return;
 
+        EnsureBridge(rifle);
+        EnsureBridge(handgun);
+
         if (handgun == null)
         {
             weaponInventory.Bind(rifle);
@@ -281,12 +284,22 @@ public class ARInfimaArmsInstaller : MonoBehaviour
             return;
         }
 
+        // Niveau 1 : Seulement le Pistolet (Fard), pas de 2ème arme !
+        if (!QuestARLevelManager.IsSecondWeaponUnlocked)
+        {
+            rifle.gameObject.SetActive(false);
+            weaponInventory.SetLoadout(new[] { handgun }, 0);
+            playerCharacter.RefreshEquippedFromInventory();
+            characterAnimator?.SetWeapon(handgun);
+            GetComponent<ARInfimaShooterInput>()?.NotifyWeaponChanged();
+            return;
+        }
+
+        // Niveau 2, 3, 4 : Les 2 armes sont débloquées (Fusil + Pistolet avec SWAP)
         weaponInventory.SetLoadout(new[] { rifle, handgun }, 0);
         playerCharacter.RefreshEquippedFromInventory();
         characterAnimator?.SetWeapon(rifle);
-
-        EnsureBridge(rifle);
-        EnsureBridge(handgun);
+        GetComponent<ARInfimaShooterInput>()?.NotifyWeaponChanged();
     }
 
     void EnsureBridge(WeaponBehaviour weapon)

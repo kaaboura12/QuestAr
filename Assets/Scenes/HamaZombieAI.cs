@@ -2,8 +2,21 @@ using UnityEngine;
 
 public class HamaZombieAI : MonoBehaviour
 {
-    [Header("Movement & Attack")]
-    public float moveSpeed = 0.95f;
+    public enum ZombieState
+    {
+        Idle,
+        Walking,
+        AlertHolding,
+        Running,
+        Attacking,
+        Dead
+    }
+
+    [Header("State Machine")]
+    public ZombieState currentState = ZombieState.Walking;
+    public float walkSpeed = 0.95f;
+    public float runSpeed = 4.2f;
+    public float alertDuration = 5.0f;
     public float rotationSpeed = 5.0f;
     public float attackRange = 1.45f;
     public float minSeparationFromOtherZombies = 1.3f;
@@ -16,15 +29,31 @@ public class HamaZombieAI : MonoBehaviour
     public bool isStunned = false;
     public bool isDead = false;
 
+    [Header("Audio 3D")]
+    public AudioClip roarClip;
+    private AudioSource roarAudio;
+
     private Animator anim;
     private Transform playerCam;
     private string currentAnimState = "";
     private float lastAttackTime = -10f;
+    private float lastBulletHitTime = -10f;
+    private float alertTimer = 0f;
     private Collider myCollider;
 
     private void Awake()
     {
         currentHealth = maxHealth;
+    }
+
+    private void OnEnable()
+    {
+        ARMicDetectionManager.OnLoudSound += HandleLoudSound;
+    }
+
+    private void OnDisable()
+    {
+        ARMicDetectionManager.OnLoudSound -= HandleLoudSound;
     }
 
     private void Start()
@@ -38,11 +67,10 @@ public class HamaZombieAI : MonoBehaviour
         myCollider = GetComponent<Collider>();
         if (myCollider == null)
         {
-            CapsuleCollider cc = gameObject.AddComponent<CapsuleCollider>();
-            cc.center = new Vector3(0f, 0.9f, 0f);
-            cc.radius = 0.35f;
-            cc.height = 1.8f;
-            myCollider = cc;
+            BoxCollider bc = gameObject.AddComponent<BoxCollider>();
+            bc.center = new Vector3(0f, 0.95f, 0f);
+            bc.size = new Vector3(0.7f, 1.9f, 0.6f);
+            myCollider = bc;
         }
 
         Rigidbody rb = GetComponent<Rigidbody>();
@@ -53,6 +81,8 @@ public class HamaZombieAI : MonoBehaviour
             rb.useGravity = false;
         }
 
+        Setup3DAudio();
+
         try
         {
             gameObject.tag = "Blood";
@@ -61,6 +91,78 @@ public class HamaZombieAI : MonoBehaviour
 
         EnsureValidMaterial();
         FindPlayerCamera();
+    }
+
+    private void Setup3DAudio()
+    {
+        roarAudio = GetComponent<AudioSource>();
+        if (roarAudio == null)
+        {
+            roarAudio = gameObject.AddComponent<AudioSource>();
+        }
+        roarAudio.spatialBlend = 1.0f; // 3D Spatial Audio
+        roarAudio.minDistance = 2.0f;
+        roarAudio.maxDistance = 25.0f;
+        roarAudio.rolloffMode = AudioRolloffMode.Linear;
+        roarAudio.playOnAwake = false;
+        roarAudio.loop = true;
+        roarAudio.volume = 0.9f;
+
+        if (roarClip != null)
+        {
+            roarAudio.clip = roarClip;
+        }
+        else
+        {
+            var reg = ARCombatAssetRegistry.Instance;
+            if (reg != null && reg.hurtVoice != null)
+            {
+                roarAudio.clip = reg.hurtVoice;
+                roarAudio.pitch = Random.Range(0.6f, 0.72f); // Pitch bas terrifiant (grognement zombie)
+            }
+        }
+    }
+
+    private void HandleLoudSound()
+    {
+        if (isDead || isStunned)
+            return;
+
+        // Quand le joueur crie ou fait du bruit : les zombies NE s'arrêtent PAS !
+        // Ils passent immédiatement de la marche normale au sprint direct vers Camera.main
+        if (currentState != ZombieState.Running)
+        {
+            currentState = ZombieState.Running;
+
+            if (playerCam == null)
+                FindPlayerCamera();
+
+            // S'orienter immédiatement vers la caméra du joueur sur l'axe horizontal
+            if (playerCam != null)
+            {
+                Vector3 currentPos = transform.position;
+                Vector3 targetPos = new Vector3(playerCam.position.x, currentPos.y, playerCam.position.z);
+                Vector3 dir = targetPos - currentPos;
+                if (dir.sqrMagnitude > 0.001f)
+                {
+                    transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+                }
+            }
+
+            if (anim != null)
+            {
+                anim.applyRootMotion = false;
+            }
+
+            PlayState("Z_Run_InPlace");
+
+            if (roarAudio != null && !roarAudio.isPlaying)
+            {
+                roarAudio.Play();
+            }
+
+            Debug.Log($"[HamaZombieAI] {gameObject.name} a entendu le bruit ! Sprint immédiat vers le joueur à {runSpeed} m/s !");
+        }
     }
 
     private void EnsureValidMaterial()
@@ -139,6 +241,8 @@ public class HamaZombieAI : MonoBehaviour
                 }
                 anim.speed = 0f;
             }
+            if (roarAudio != null && roarAudio.isPlaying)
+                roarAudio.Pause();
             return;
         }
 
@@ -147,19 +251,52 @@ public class HamaZombieAI : MonoBehaviour
             anim.speed = 1f;
         }
 
+        if (QuestARLevelManager.IsTransitioning || QuestARLevelManager.IsGameWon || QuestARLevelManager.IsPlayerDead())
+        {
+            if (roarAudio != null && roarAudio.isPlaying)
+                roarAudio.Pause();
+            PlayState("Z_Idle");
+            return;
+        }
+
+        // Maintenir le zombie strictement posé sur le vrai sol sous la caméra (sans jamais flotter à hauteur des yeux)
+        Vector3 p = transform.position;
+        float rawFloorY = ARZombieSpawner.IsFloorCalibrated
+            ? ARZombieSpawner.DetectedFloorY
+            : (playerCam.position.y - 1.45f);
+        p.y = Mathf.Clamp(rawFloorY, playerCam.position.y - 1.85f, playerCam.position.y - 1.15f);
+        transform.position = p;
+
         Vector3 currentPos = transform.position;
         Vector3 targetPos = new Vector3(playerCam.position.x, currentPos.y, playerCam.position.z);
 
         Vector3 dirToPlayer = targetPos - currentPos;
         float distanceToPlayer = dirToPlayer.magnitude;
 
-        if (distanceToPlayer > 0.05f)
+        // 1. ÉTAT: AlertHolding (Converti immédiatement en Running sans immobilisation)
+        if (currentState == ZombieState.AlertHolding)
         {
-            Quaternion targetRot = Quaternion.LookRotation(dirToPlayer.normalized, Vector3.up);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
+            currentState = ZombieState.Running;
+            if (anim != null)
+            {
+                anim.applyRootMotion = false;
+            }
+            PlayState("Z_Run_InPlace");
+            if (roarAudio != null && !roarAudio.isPlaying)
+            {
+                roarAudio.Play();
+            }
         }
 
-        // Compute repulsion from other zombies so they never overlap
+        // Orientation vers la caméra
+        if (distanceToPlayer > 0.05f)
+        {
+            float rotSpeed = (currentState == ZombieState.Running) ? 9.0f : rotationSpeed;
+            Quaternion targetRot = Quaternion.LookRotation(dirToPlayer.normalized, Vector3.up);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotSpeed * Time.deltaTime);
+        }
+
+        // Répulsion entre zombies pour éviter la superposition
         Vector3 separationOffset = Vector3.zero;
         HamaZombieAI[] allZombies = Object.FindObjectsByType<HamaZombieAI>(FindObjectsInactive.Exclude);
         foreach (HamaZombieAI other in allZombies)
@@ -174,19 +311,40 @@ public class HamaZombieAI : MonoBehaviour
             }
         }
 
+        // 2. Déplacement ou Attaque
         if (distanceToPlayer > attackRange)
         {
-            Vector3 moveDir = (dirToPlayer.normalized + separationOffset * 1.4f).normalized;
+            float activeSpeed = (currentState == ZombieState.Running) ? runSpeed : walkSpeed;
+            Vector3 moveDir = dirToPlayer.normalized;
+            if (separationOffset.sqrMagnitude > 0.001f)
+            {
+                moveDir = (dirToPlayer.normalized + separationOffset * 0.7f).normalized;
+            }
             moveDir.y = 0f;
-            transform.position = currentPos + moveDir * (moveSpeed * Time.deltaTime);
-            PlayState("Z_Walk_InPlace");
+
+            // Déplacement vers Camera.main
+            transform.position += moveDir * (activeSpeed * Time.deltaTime);
+
+            if (currentState == ZombieState.Running)
+            {
+                PlayState("Z_Run_InPlace");
+                if (roarAudio != null && !roarAudio.isPlaying)
+                {
+                    roarAudio.Play();
+                }
+            }
+            else
+            {
+                PlayState("Z_Walk_InPlace");
+            }
         }
         else
         {
-            // Keep gentle separation even while in attack range
+            // Portée d'attaque atteinte
+            currentState = ZombieState.Attacking;
             if (separationOffset.sqrMagnitude > 0.01f)
             {
-                transform.position = currentPos + separationOffset * (moveSpeed * 0.5f * Time.deltaTime);
+                transform.position = currentPos + separationOffset * (walkSpeed * 0.5f * Time.deltaTime);
             }
             PlayState("Z_Attack");
 
@@ -217,6 +375,12 @@ public class HamaZombieAI : MonoBehaviour
         if (isDead) return;
         isDead = true;
         isStunned = false;
+        currentState = ZombieState.Dead;
+
+        if (roarAudio != null && roarAudio.isPlaying)
+        {
+            roarAudio.Stop();
+        }
 
         if (anim != null)
         {
@@ -229,31 +393,41 @@ public class HamaZombieAI : MonoBehaviour
             myCollider.enabled = false;
         }
 
+        QuestARLevelManager.NotifyZombieKilled();
+
         Destroy(gameObject, 4.5f);
     }
 
     private void OnCollisionEnter(Collision collision)
     {
         if (isDead || collision == null || collision.gameObject == null) return;
-
-        string objName = collision.gameObject.name;
-        if (collision.gameObject.GetComponent("Projectile") != null ||
-            objName.IndexOf("bullet", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-            objName.IndexOf("projectile", System.StringComparison.OrdinalIgnoreCase) >= 0)
-        {
-            TakeDamage(35f);
-        }
+        TryProcessProjectileHit(collision.gameObject);
     }
 
     private void OnTriggerEnter(Collider other)
     {
         if (isDead || other == null || other.gameObject == null) return;
+        TryProcessProjectileHit(other.gameObject);
+    }
 
-        string objName = other.gameObject.name;
-        if (other.gameObject.GetComponent("Projectile") != null ||
+    private void TryProcessProjectileHit(GameObject hitObj)
+    {
+        if (isDead || hitObj == null || QuestARLevelManager.IsPlayerDead()) return;
+
+        string objName = hitObj.name;
+        if (hitObj.GetComponent("Projectile") != null ||
             objName.IndexOf("bullet", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
             objName.IndexOf("projectile", System.StringComparison.OrdinalIgnoreCase) >= 0)
         {
+            // Empêcher une même balle de déclencher OnCollisionEnter + OnTriggerEnter plusieurs fois
+            if (Time.time - lastBulletHitTime < 0.06f)
+            {
+                Destroy(hitObj);
+                return;
+            }
+
+            lastBulletHitTime = Time.time;
+            Destroy(hitObj);
             TakeDamage(35f);
         }
     }

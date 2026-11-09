@@ -254,7 +254,7 @@ public class ARPlayerSessionHud : MonoBehaviour
             username = VisageAuthSession.CurrentUser.username;
         }
 
-        playerLabel.text = $"👤 JOUEUR : <color=#FF382E>{username}</color>";
+        playerLabel.text = $"JOUEUR : <color=#FF382E>{username}</color>";
     }
 
     private void HandleUserLoggedIn(MongoUserDocument user, string authMethod)

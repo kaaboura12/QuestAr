@@ -83,13 +83,23 @@ public class ARMobileCombatControls : MonoBehaviour
             ApplySafeArea(safeArea);
 
         var vitals = GetComponent<ARZombieVitals>();
-        bool dead = vitals != null && vitals.IsDead;
+        bool dead = (vitals != null && vitals.IsDead) || QuestARLevelManager.IsGameWon || QuestARLevelManager.IsTransitioning;
         if (canvasGroup != null)
         {
             canvasGroup.alpha = dead ? 0f : 1f;
             canvasGroup.interactable = !dead;
             canvasGroup.blocksRaycasts = !dead;
         }
+
+        // Déblocage progressif des boutons par Niveau :
+        // Niveau 1 : pas de SWAP, pas de FLASH
+        // Niveau 2 : SWAP débloqué, pas de FLASH
+        // Niveau 3+ : SWAP + FLASH débloqués
+        if (swapButton != null && swapButton.gameObject.activeSelf != QuestARLevelManager.IsSecondWeaponUnlocked)
+            swapButton.gameObject.SetActive(QuestARLevelManager.IsSecondWeaponUnlocked);
+
+        if (flashButton != null && flashButton.gameObject.activeSelf != QuestARLevelManager.IsFlashUnlocked)
+            flashButton.gameObject.SetActive(QuestARLevelManager.IsFlashUnlocked);
 
         if (dead)
             ReleaseAll();
@@ -490,11 +500,18 @@ public class ARCombatTouchButton : MonoBehaviour, IPointerDownHandler, IPointerU
         if (kind == Kind.Flash)
         {
             bool isStunActive = HamaFlashStunManager.Instance != null && HamaFlashStunManager.Instance.IsFlashActive;
+            bool isInCooldown = HamaFlashStunManager.Instance != null && HamaFlashStunManager.Instance.IsInCooldown;
             if (isStunActive)
             {
                 string stunText = $"FLASH\n{HamaFlashStunManager.Instance.RemainingStunTime:F0}s";
                 if (labelTmp != null) labelTmp.text = stunText;
                 if (labelText != null) labelText.text = stunText;
+            }
+            else if (isInCooldown)
+            {
+                string coolText = $"PAUSE\n{HamaFlashStunManager.Instance.RemainingCooldownTime:F0}s";
+                if (labelTmp != null) labelTmp.text = coolText;
+                if (labelText != null) labelText.text = coolText;
             }
             else
             {
@@ -563,10 +580,13 @@ public class ARCombatTouchButton : MonoBehaviour, IPointerDownHandler, IPointerU
         lastTapActionTime = Time.unscaledTime;
         if (kind == Kind.Reload)
             shooter?.RequestReload();
-        else if (kind == Kind.Swap)
+        else if (kind == Kind.Swap && QuestARLevelManager.IsSecondWeaponUnlocked)
             shooter?.GetComponent<ARInfimaWeaponSwitcher>()?.TrySwap();
-        else if (kind == Kind.Flash)
-            HamaFlashStunManager.Instance?.TriggerFlashStun();
+        else if (kind == Kind.Flash && QuestARLevelManager.IsFlashUnlocked)
+        {
+            if (HamaFlashStunManager.Instance != null && HamaFlashStunManager.Instance.CanTriggerFlash)
+                HamaFlashStunManager.Instance.TriggerFlashStun();
+        }
     }
 
     void PollDirectTouches()
@@ -692,12 +712,19 @@ public class ARCombatTouchButton : MonoBehaviour, IPointerDownHandler, IPointerU
     {
         bool isFlashStunActive = (kind == Kind.Flash) &&
             (HamaFlashStunManager.Instance != null && HamaFlashStunManager.Instance.IsFlashActive);
+        bool isFlashInCooldown = (kind == Kind.Flash) &&
+            (HamaFlashStunManager.Instance != null && HamaFlashStunManager.Instance.IsInCooldown);
 
         if (fill != null)
         {
-            Color target = (engaged || isFlashStunActive)
-                ? (kind == Kind.Flash ? ActiveFlashFill : HeldFill)
-                : IdleFill;
+            Color target;
+            if (isFlashInCooldown)
+                target = new Color(0.18f, 0.18f, 0.22f, 0.75f);
+            else if (engaged || isFlashStunActive)
+                target = (kind == Kind.Flash ? ActiveFlashFill : HeldFill);
+            else
+                target = IdleFill;
+
             fill.color = Color.Lerp(fill.color, target, blend);
         }
 
@@ -706,7 +733,14 @@ public class ARCombatTouchButton : MonoBehaviour, IPointerDownHandler, IPointerU
 
         Color ringTarget;
         if (kind == Kind.Flash)
-            ringTarget = (engaged || isFlashStunActive) ? ActiveFlashRing : IdleFlashRing;
+        {
+            if (isFlashInCooldown)
+                ringTarget = new Color(0.55f, 0.55f, 0.55f, 0.65f);
+            else if (engaged || isFlashStunActive)
+                ringTarget = ActiveFlashRing;
+            else
+                ringTarget = IdleFlashRing;
+        }
         else if (kind == Kind.Fire)
             ringTarget = engaged ? HeldRing : IdleFireRing;
         else

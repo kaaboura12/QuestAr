@@ -419,8 +419,9 @@ public class ARGameOver : MonoBehaviour
 
     void OnReplayClicked()
     {
-        Debug.Log("[ARGameOver] Joueur a cliqué sur REJOUER. Redémarrage de la partie en conservant la session active...");
+        Debug.Log("[ARGameOver] Joueur a cliqué sur REJOUER. Redémarrage du niveau en conservant la session active...");
         Time.timeScale = 1f;
+        QuestARLevelManager.ResetCurrentLevelKills();
         Scene activeScene = SceneManager.GetActiveScene();
         SceneManager.LoadScene(activeScene.name);
     }
@@ -429,6 +430,7 @@ public class ARGameOver : MonoBehaviour
     {
         Debug.Log("[ARGameOver] Joueur a cliqué sur DÉCONNEXION. Retour vers l'écran d'authentification...");
         Time.timeScale = 1f;
+        QuestARLevelManager.ResetToLevelOne();
 
         Screen.orientation = ScreenOrientation.Portrait;
         Screen.autorotateToPortrait = true;

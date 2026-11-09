@@ -29,33 +29,8 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.ARStarterAssets
         void Awake()
         {
             m_PlaneMeshVisualizer = GetComponent<ARPlaneMeshVisualizer>();
-            if (m_PlaneMeshVisualizer != null)
-            {
-                m_PlaneMeshVisualizer.enabled = false;
-            }
-
-            var mr = GetComponent<MeshRenderer>();
-            if (mr != null)
-            {
-                mr.enabled = false;
-                m_FeatheredPlaneMaterial = mr.material;
-            }
-
+            m_FeatheredPlaneMaterial = GetComponent<MeshRenderer>().material;
             m_Plane = GetComponent<ARPlane>();
-        }
-
-        void Start()
-        {
-            if (m_PlaneMeshVisualizer != null)
-            {
-                m_PlaneMeshVisualizer.enabled = false;
-            }
-
-            var mr = GetComponent<MeshRenderer>();
-            if (mr != null)
-            {
-                mr.enabled = false;
-            }
         }
 
         void OnEnable()
@@ -70,12 +45,7 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.ARStarterAssets
 
         void ARPlane_boundaryUpdated(ARPlaneBoundaryChangedEventArgs eventArgs)
         {
-            var mr = GetComponent<MeshRenderer>();
-            if (mr != null) mr.enabled = false;
-            if (m_PlaneMeshVisualizer != null && m_PlaneMeshVisualizer.mesh != null)
-            {
-                GenerateBoundaryUVs(m_PlaneMeshVisualizer.mesh);
-            }
+            GenerateBoundaryUVs(m_PlaneMeshVisualizer.mesh);
         }
 
         /// <summary>

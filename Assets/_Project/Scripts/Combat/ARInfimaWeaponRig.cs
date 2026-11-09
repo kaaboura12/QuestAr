@@ -32,6 +32,9 @@ public class ARInfimaWeaponRig : MonoBehaviour
         if (GetComponent<ARInfimaAimPoint>() == null)
             gameObject.AddComponent<ARInfimaAimPoint>();
 
+        if (GetComponent<QuestARLevelManager>() == null)
+            gameObject.AddComponent<QuestARLevelManager>();
+
         if (GetComponent<ARMobileCombatControls>() == null)
             gameObject.AddComponent<ARMobileCombatControls>();
 
@@ -52,5 +55,14 @@ public class ARInfimaWeaponRig : MonoBehaviour
 
         if (GetComponent<ARZombieSpawner>() == null)
             gameObject.AddComponent<ARZombieSpawner>();
+
+        if (GetComponent<ARMicDetectionManager>() == null)
+            gameObject.AddComponent<ARMicDetectionManager>();
+
+        if (GetComponent<ARAlertVignetteController>() == null)
+            gameObject.AddComponent<ARAlertVignetteController>();
+
+        if (GetComponent<ARMicTestWindow>() == null)
+            gameObject.AddComponent<ARMicTestWindow>();
     }
 }

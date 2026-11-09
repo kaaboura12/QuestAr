@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e71bee473da005f47a0aed84a7b2309d, type: 3}
+  m_Name: Enigme_Musee
+  m_EditorClassIdentifier: Assembly-CSharp::PuzzleData
+  titre: Le sceau du vampire
+  codeSecret: 4729
+  indice: "La crypte du ch\xE2teau renferme le plan"
+  recompenseXP: 50
+  reliques:
+  - {fileID: 11400000, guid: 5a1c0e0d9b7f4c3a8e2d1f6b4a9c7f01, type: 2}
+  - {fileID: 11400000, guid: 5a1c0e0d9b7f4c3a8e2d1f6b4a9c7f02, type: 2}
+  - {fileID: 11400000, guid: 5a1c0e0d9b7f4c3a8e2d1f6b4a9c7f03, type: 2}
+  - {fileID: 11400000, guid: 5a1c0e0d9b7f4c3a8e2d1f6b4a9c7f04, type: 2}
+  - {fileID: 11400000, guid: 5a1c0e0d9b7f4c3a8e2d1f6b4a9c7f05, type: 2}
+  - {fileID: 11400000, guid: 5a1c0e0d9b7f4c3a8e2d1f6b4a9c7f06, type: 2}
+  - {fileID: 11400000, guid: 5a1c0e0d9b7f4c3a8e2d1f6b4a9c7f07, type: 2}

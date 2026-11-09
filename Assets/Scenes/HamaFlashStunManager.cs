@@ -1,5 +1,7 @@
 using System.Collections;
+using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
@@ -22,6 +24,18 @@ public class HamaFlashStunManager : MonoBehaviour
     public Text statusText;
     public Text flashButtonText;
 
+    [Header("Light Sensor (Capteur de Luminosité)")]
+    [Tooltip("Seuil en Lux séparant une pièce sombre (Flash fort) d'une pièce éclairée (Flash doux).")]
+    public float brightEnvironmentThresholdLux = 85f;
+    [SerializeField] private float currentAmbientLux = 45f;
+    [SerializeField] private bool isDarkEnvironment = true;
+    private float lastCameraLux = 45f;
+    private bool hasValidPhysicalReading = false;
+
+    [Header("Cooldown Settings (Pause de 10s)")]
+    public float cooldownDuration = 10.0f;
+    [SerializeField] private float remainingCooldownTime = 0f;
+
     [Header("Player Health")]
     public float maxHealth = 100f;
     public float currentHealth = 100f;
@@ -31,9 +45,16 @@ public class HamaFlashStunManager : MonoBehaviour
     private float remainingStunTime = 0f;
     private bool pausedArSessionForTorch = false;
     private Coroutine flashRoutine;
+    private TextMeshProUGUI sensorBannerLabel;
+    private GameObject sensorBannerObj;
 
     public bool IsFlashActive => isFlashActive;
     public float RemainingStunTime => remainingStunTime;
+    public bool IsInCooldown => remainingCooldownTime > 0f;
+    public float RemainingCooldownTime => remainingCooldownTime;
+    public bool CanTriggerFlash => !isFlashActive && remainingCooldownTime <= 0f && QuestARLevelManager.IsFlashUnlocked;
+    public float CurrentAmbientLux => currentAmbientLux;
+    public bool IsDarkEnvironment => isDarkEnvironment;
 
     private void Awake()
     {
@@ -43,6 +64,10 @@ public class HamaFlashStunManager : MonoBehaviour
         if (arCameraManager == null)
         {
             arCameraManager = Object.FindAnyObjectByType<ARCameraManager>();
+        }
+        if (arCameraManager != null)
+        {
+            arCameraManager.requestedLightEstimation = LightEstimation.AmbientIntensity | LightEstimation.AmbientColor | LightEstimation.AmbientSphericalHarmonics;
         }
         if (arSession == null)
         {
@@ -61,8 +86,8 @@ public class HamaFlashStunManager : MonoBehaviour
                 spotObj.transform.localRotation = Quaternion.identity;
                 cameraFlashSpotLight = spotObj.AddComponent<Light>();
                 cameraFlashSpotLight.type = LightType.Spot;
-                cameraFlashSpotLight.range = 25f;
-                cameraFlashSpotLight.spotAngle = 65f;
+                cameraFlashSpotLight.range = 28f;
+                cameraFlashSpotLight.spotAngle = 68f;
                 cameraFlashSpotLight.intensity = 3.5f;
                 cameraFlashSpotLight.color = new Color(1f, 0.95f, 0.85f);
                 cameraFlashSpotLight.enabled = false;
@@ -73,6 +98,7 @@ public class HamaFlashStunManager : MonoBehaviour
         {
             cameraFlashSpotLight.enabled = false;
         }
+
         if (screenFlashOverlay == null)
         {
             GameObject overlayCanvas = new GameObject("AR_ScreenFlash_Canvas");
@@ -92,6 +118,8 @@ public class HamaFlashStunManager : MonoBehaviour
             screenFlashOverlay = imgObj.AddComponent<Image>();
             screenFlashOverlay.color = new Color(1f, 1f, 1f, 0f);
             screenFlashOverlay.raycastTarget = false;
+
+            BuildSensorBanner(overlayCanvas.transform);
         }
         else
         {
@@ -99,8 +127,140 @@ public class HamaFlashStunManager : MonoBehaviour
         }
     }
 
+    private void OnEnable()
+    {
+        if (arCameraManager == null)
+            arCameraManager = Object.FindAnyObjectByType<ARCameraManager>();
+
+        if (arCameraManager != null)
+        {
+            arCameraManager.requestedLightEstimation = LightEstimation.AmbientIntensity | LightEstimation.AmbientColor | LightEstimation.AmbientSphericalHarmonics;
+            arCameraManager.frameReceived += OnCameraFrameReceived;
+        }
+
+        if (LightSensor.current != null && !LightSensor.current.enabled)
+        {
+            InputSystem.EnableDevice(LightSensor.current);
+        }
+    }
+
+    private void Update()
+    {
+        // 1. Décompte du Cooldown de 10 secondes (Pause)
+        if (remainingCooldownTime > 0f)
+        {
+            remainingCooldownTime -= Time.deltaTime;
+            if (remainingCooldownTime <= 0f)
+            {
+                remainingCooldownTime = 0f;
+            }
+        }
+
+        // 2. Lecture du capteur matériel de luminosité
+        if (LightSensor.current != null)
+        {
+            if (!LightSensor.current.enabled)
+                InputSystem.EnableDevice(LightSensor.current);
+
+            float sensorLux = LightSensor.current.lightLevel.ReadValue();
+            // Si le capteur matériel renvoie une vraie valeur positive non nulle
+            if (sensorLux > 0.05f)
+            {
+                hasValidPhysicalReading = true;
+                currentAmbientLux = Mathf.Lerp(currentAmbientLux, sensorLux, Time.deltaTime * 6f);
+            }
+            else
+            {
+                hasValidPhysicalReading = false;
+            }
+        }
+        else
+        {
+            hasValidPhysicalReading = false;
+        }
+
+        // Fallback sécurisé : si le capteur physique n'a pas fourni de valeur (> 0), utiliser ARCore
+        if (!hasValidPhysicalReading)
+        {
+            if (lastCameraLux > 0f)
+            {
+                currentAmbientLux = Mathf.Lerp(currentAmbientLux, lastCameraLux, Time.deltaTime * 4f);
+            }
+            else if (currentAmbientLux <= 1f)
+            {
+                currentAmbientLux = 45f;
+            }
+        }
+
+        // Ne jamais laisser la valeur à 0 (valeur plancher de 10 Lux pour la pénombre)
+        if (currentAmbientLux < 10f)
+            currentAmbientLux = 10f;
+
+        isDarkEnvironment = currentAmbientLux <= brightEnvironmentThresholdLux;
+    }
+
+    private void OnCameraFrameReceived(ARCameraFrameEventArgs args)
+    {
+        float estimatedLux = -1f;
+        if (args.lightEstimation.averageIntensityInLumens.HasValue && args.lightEstimation.averageIntensityInLumens.Value > 0f)
+        {
+            estimatedLux = args.lightEstimation.averageIntensityInLumens.Value;
+        }
+        else if (args.lightEstimation.averageBrightness.HasValue)
+        {
+            // averageBrightness varie de 0.0f (obscurité) à 1.0f (très éclairé)
+            // ex: 0.1 -> ~25 Lux, 0.4 -> ~100 Lux, 0.8+ -> ~200+ Lux
+            float b = args.lightEstimation.averageBrightness.Value;
+            estimatedLux = Mathf.Clamp(b * 260f, 15f, 400f);
+        }
+
+        if (estimatedLux > 0f)
+        {
+            lastCameraLux = estimatedLux;
+            if (!hasValidPhysicalReading)
+            {
+                currentAmbientLux = Mathf.Lerp(currentAmbientLux, estimatedLux, 0.35f);
+            }
+        }
+    }
+
+    private void BuildSensorBanner(Transform canvasTransform)
+    {
+        sensorBannerObj = new GameObject("LightSensor_Banner", typeof(RectTransform));
+        sensorBannerObj.transform.SetParent(canvasTransform, false);
+        RectTransform rt = sensorBannerObj.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.anchoredPosition = new Vector2(0f, -115f);
+        rt.sizeDelta = new Vector2(780f, 54f);
+
+        Image bg = sensorBannerObj.AddComponent<Image>();
+        bg.color = new Color(0.06f, 0.06f, 0.08f, 0.88f);
+        bg.raycastTarget = false;
+
+        GameObject lblObj = new GameObject("Text", typeof(RectTransform));
+        lblObj.transform.SetParent(sensorBannerObj.transform, false);
+        RectTransform lrt = lblObj.GetComponent<RectTransform>();
+        lrt.anchorMin = Vector2.zero;
+        lrt.anchorMax = Vector2.one;
+        lrt.offsetMin = Vector2.zero;
+        lrt.offsetMax = Vector2.zero;
+
+        sensorBannerLabel = lblObj.AddComponent<TextMeshProUGUI>();
+        sensorBannerLabel.fontSize = 22f;
+        sensorBannerLabel.fontStyle = FontStyles.Bold;
+        sensorBannerLabel.alignment = TextAlignmentOptions.Center;
+        sensorBannerLabel.color = new Color(1f, 0.92f, 0.35f, 1f);
+        sensorBannerLabel.raycastTarget = false;
+
+        sensorBannerObj.SetActive(false);
+    }
+
     public void TriggerFlashStun()
     {
+        if (!CanTriggerFlash)
+            return;
+
         if (flashRoutine != null)
         {
             StopCoroutine(flashRoutine);
@@ -111,6 +271,15 @@ public class HamaFlashStunManager : MonoBehaviour
     private IEnumerator FlashStunCoroutine()
     {
         isFlashActive = true;
+
+        // Lecture du capteur de lumière du téléphone au moment du Flash
+        bool darkRoom = currentAmbientLux <= brightEnvironmentThresholdLux;
+
+        // Si pièce sombre (Dinya Dilma) -> Flash très puissant à l'écran et en 3D
+        // Si pièce éclairée (Dinya Dawiya) -> Flash doux à l'écran (moch 9wi)
+        float peakScreenAlpha = darkRoom ? 0.90f : 0.22f;
+        float steadyScreenAlpha = darkRoom ? 0.28f : 0.04f;
+        float targetSpotIntensity = darkRoom ? 6.5f : 1.6f;
 
         // 1. Request ARCore / AR Foundation hardware Torch ON + 3D Camera SpotLight
         SetARFoundationTorch(true);
@@ -127,13 +296,22 @@ public class HamaFlashStunManager : MonoBehaviour
                 cameraFlashSpotLight.type = LightType.Spot;
                 cameraFlashSpotLight.range = 30f;
                 cameraFlashSpotLight.spotAngle = 70f;
-                cameraFlashSpotLight.intensity = 4.0f;
                 cameraFlashSpotLight.color = new Color(1f, 0.95f, 0.85f);
             }
         }
         if (cameraFlashSpotLight != null)
         {
+            cameraFlashSpotLight.intensity = targetSpotIntensity;
             cameraFlashSpotLight.enabled = true;
+        }
+
+        if (sensorBannerObj != null && sensorBannerLabel != null)
+        {
+            sensorBannerObj.SetActive(true);
+            string modeTxt = darkRoom
+                ? $"CAPTEUR LUMIÈRE : {currentAmbientLux:F0} Lux (Obscurité -> FLASH PUISSANT)"
+                : $"CAPTEUR LUMIÈRE : {currentAmbientLux:F0} Lux (Zone Éclairée -> FLASH DOUX)";
+            sensorBannerLabel.text = modeTxt;
         }
 
         // 2. Freeze all zombies in the scene for 5 seconds
@@ -150,7 +328,20 @@ public class HamaFlashStunManager : MonoBehaviour
         {
             float elapsed = stunDuration - remaining;
 
-            // After 0.25s, verify if ARCore Torch turned on; if not, force Android CameraManager Torch
+            // Recalculer dynamiquement selon le capteur de lumière en temps réel pendant les 5s
+            darkRoom = currentAmbientLux <= brightEnvironmentThresholdLux;
+            peakScreenAlpha = darkRoom ? 0.90f : 0.22f;
+            steadyScreenAlpha = darkRoom ? 0.28f : 0.04f;
+            if (cameraFlashSpotLight != null)
+                cameraFlashSpotLight.intensity = darkRoom ? 6.5f : 1.6f;
+
+            if (sensorBannerLabel != null)
+            {
+                sensorBannerLabel.text = darkRoom
+                    ? $"CAPTEUR LUMIÈRE : {currentAmbientLux:F0} Lux (Obscurité -> FLASH FORT) [{remaining:F1}s]"
+                    : $"CAPTEUR LUMIÈRE : {currentAmbientLux:F0} Lux (Éclairé -> FLASH DOUX) [{remaining:F1}s]";
+            }
+
             if (!checkedHardwareFallback && elapsed >= 0.25f)
             {
                 checkedHardwareFallback = true;
@@ -160,16 +351,17 @@ public class HamaFlashStunManager : MonoBehaviour
                 }
             }
 
-            // Initial bright flash burst in the first 0.35s, then subtle torch glow
             if (screenFlashOverlay != null)
             {
-                float alpha = elapsed < 0.35f ? Mathf.Lerp(0.65f, 0.08f, elapsed / 0.35f) : 0.08f;
+                float alpha = elapsed < 0.35f
+                    ? Mathf.Lerp(peakScreenAlpha, steadyScreenAlpha, elapsed / 0.35f)
+                    : steadyScreenAlpha;
                 screenFlashOverlay.color = new Color(1f, 0.98f, 0.85f, alpha);
             }
 
             if (statusText != null)
             {
-                statusText.text = "QuestAR - MOUHAMED (HAMA)\nFLASH ACTIF : ZOMBIES STOP (" + remaining.ToString("F1") + "s)";
+                statusText.text = "QuestAR - FLASH ACTIF : ZOMBIES STOP (" + remaining.ToString("F1") + "s)";
                 statusText.color = new Color(1f, 0.95f, 0.3f, 1f);
             }
             if (flashButtonText != null)
@@ -188,29 +380,13 @@ public class HamaFlashStunManager : MonoBehaviour
         {
             cameraFlashSpotLight.enabled = false;
         }
-        if (screenFlashOverlay == null)
+        if (screenFlashOverlay != null)
         {
-            GameObject overlayCanvas = new GameObject("AR_ScreenFlash_Canvas");
-            Canvas canvas = overlayCanvas.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 999;
-            CanvasScaler scaler = overlayCanvas.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            GameObject imgObj = new GameObject("OverlayImage");
-            imgObj.transform.SetParent(overlayCanvas.transform, false);
-            RectTransform rt = imgObj.AddComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-            screenFlashOverlay = imgObj.AddComponent<Image>();
             screenFlashOverlay.color = new Color(1f, 1f, 1f, 0f);
-            screenFlashOverlay.raycastTarget = false;
         }
-        else
+        if (sensorBannerObj != null)
         {
-            screenFlashOverlay.color = new Color(1f, 1f, 1f, 0f);
+            sensorBannerObj.SetActive(false);
         }
 
         zombies = Object.FindObjectsByType<HamaZombieAI>(FindObjectsInactive.Exclude);
@@ -221,7 +397,7 @@ public class HamaFlashStunManager : MonoBehaviour
 
         if (statusText != null)
         {
-            statusText.text = "QuestAR - MOUHAMED (HAMA)\nMission 3 : Survivre aux Zombies AR";
+            statusText.text = "QuestAR - Survivre aux Zombies AR";
             statusText.color = new Color(0.45f, 0.95f, 1f, 1f);
         }
         if (flashButtonText != null)
@@ -230,7 +406,11 @@ public class HamaFlashStunManager : MonoBehaviour
         }
 
         isFlashActive = false;
+        remainingStunTime = 0f;
         flashRoutine = null;
+
+        // Début du temps de pause / cooldown de 10 secondes
+        remainingCooldownTime = cooldownDuration;
     }
 
     private void SetARFoundationTorch(bool enable)
@@ -238,6 +418,10 @@ public class HamaFlashStunManager : MonoBehaviour
         if (arCameraManager == null)
         {
             arCameraManager = Object.FindAnyObjectByType<ARCameraManager>();
+        }
+        if (arCameraManager != null)
+        {
+            arCameraManager.requestedLightEstimation = LightEstimation.AmbientIntensity | LightEstimation.AmbientColor | LightEstimation.AmbientSphericalHarmonics;
         }
         if (arSession == null)
         {
@@ -280,13 +464,11 @@ public class HamaFlashStunManager : MonoBehaviour
     private IEnumerator EnsureAndroidHardwareTorchCoroutine()
     {
 #if UNITY_ANDROID && !UNITY_EDITOR
-        // First attempt direct CameraManager.setTorchMode without pausing ARSession
         if (TrySetAndroidCameraManagerTorch(true))
         {
             yield break;
         }
 
-        // If ARCore holds an exclusive camera lock and rejects setTorchMode, pause ARSession during the 5s freeze
         SetARFoundationTorch(false);
         if (arCameraManager != null && arCameraManager.enabled)
         {
@@ -298,7 +480,6 @@ public class HamaFlashStunManager : MonoBehaviour
             pausedArSessionForTorch = true;
         }
 
-        // Retry up to 6 times (max ~0.6s) while Android releases the camera lock
         for (int attempt = 0; attempt < 6; attempt++)
         {
             yield return new WaitForSeconds(0.12f);
@@ -386,6 +567,11 @@ public class HamaFlashStunManager : MonoBehaviour
 
     private void OnDisable()
     {
+        if (arCameraManager != null)
+        {
+            arCameraManager.frameReceived -= OnCameraFrameReceived;
+        }
+
         if (isFlashActive)
         {
             SetARFoundationTorch(false);

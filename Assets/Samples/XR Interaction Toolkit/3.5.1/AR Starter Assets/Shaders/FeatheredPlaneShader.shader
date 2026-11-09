@@ -62,7 +62,17 @@ Shader "Unlit/FeatheredPlaneShader"
             fixed4 frag (v2f i) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
-                return fixed4(0, 0, 0, 0);
+
+                fixed4 col = tex2D(_MainTex, i.uv) * _TexTintColor;
+                col = lerp( _PlaneColor, col, col.a);
+                // Fade out from as we pass the edge.
+                // uv2.x stores a mapped UV that will be "1" at the beginning of the feathering.
+                // We fade until we reach at the edge of the shortest UV mapping.
+                // This is the remmaped UV value at the vertex.
+                // We choose the shorted one so that ll edges will fade out completely.
+                // See ARFeatheredPlaneMeshVisualizer.cs for more details.
+                col.a *=  1-smoothstep(1, _ShortestUVMapping, i.uv2.x);
+                return col;
             }
             ENDCG
         }
