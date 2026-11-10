@@ -38,11 +38,23 @@ public class ARZombieSpawner : MonoBehaviour
     private bool lockedRealArFloorPlane = false;
     private float calibratedFloorOffsetFromCam = -DefaultCameraToFloorHeight;
 
+    public enum EnvironmentScanState
+    {
+        SearchingFloor,
+        ObstacleTooClose,
+        AnalyzingClearSpace,
+        ReadyToFight
+    }
+
     private ARPlaneManager planeManager;
     private ARRaycastManager raycastManager;
     private GameObject scanOverlayCanvas;
+    private TextMeshProUGUI scanTitleText;
     private TextMeshProUGUI scanStatusText;
+    private Outline scanCardOutline;
     private Image scanProgressFill;
+    private Image validateBtnImg;
+    private TextMeshProUGUI validateBtnText;
     private RectTransform validateFloorBtnRect;
     private bool manualFloorConfirmRequested = false;
     private Material safeScanPlaneMaterial;
@@ -178,68 +190,103 @@ public class ARZombieSpawner : MonoBehaviour
         }
     }
 
-    private bool TryFindLowestHorizontalFloorY(out float floorY)
+    private EnvironmentScanState AnalyzeEnvironment(out float detectedFloorY, out string obstacleReason)
     {
         FindPlayerCamera();
         float camY = playerCam != null ? playerCam.position.y : 0f;
-        floorY = camY - DefaultCameraToFloorHeight;
-        bool foundFloor = false;
+        detectedFloorY = camY - DefaultCameraToFloorHeight;
+        obstacleReason = "";
 
-        // 1. Tester ARRaycastManager vers le bas de l'écran en mode Paysage (centre horizontal, quart inférieur)
+        bool hasCloseObstacle = false;
+        bool hasValidClearFloor = false;
+        float bestFloorY = float.MaxValue;
+
+        // 1. Raycasts multi-points dans la vue caméra en mode Paysage
         if (raycastManager != null)
         {
-            Vector2 screenPt = new Vector2(Screen.width * 0.5f, Screen.height * 0.22f);
-            if (raycastManager.Raycast(screenPt, arHits, TrackableType.PlaneWithinPolygon | TrackableType.PlaneEstimated))
-            {
-                for (int i = 0; i < arHits.Count; i++)
-                {
-                    ARPlane hitPlane = planeManager != null ? planeManager.GetPlane(arHits[i].trackableId) : null;
-                    if (hitPlane != null && hitPlane.alignment != PlaneAlignment.HorizontalUp)
-                        continue;
+            Vector2 ptNear = new Vector2(Screen.width * 0.5f, Screen.height * 0.20f);
+            Vector2 ptMid = new Vector2(Screen.width * 0.5f, Screen.height * 0.36f);
+            Vector2 ptLeft = new Vector2(Screen.width * 0.35f, Screen.height * 0.22f);
+            Vector2 ptRight = new Vector2(Screen.width * 0.65f, Screen.height * 0.22f);
 
-                    float hitY = arHits[i].pose.position.y;
-                    // Ignorer les tables / chaises / meubles (75cm-85cm) : le vrai sol est au moins 0.85m sous la caméra
-                    if (hitY <= camY - 0.85f)
+            Vector2[] testPoints = { ptNear, ptMid, ptLeft, ptRight };
+
+            for (int p = 0; p < testPoints.Length; p++)
+            {
+                if (raycastManager.Raycast(testPoints[p], arHits, TrackableType.PlaneWithinPolygon | TrackableType.PlaneEstimated))
+                {
+                    for (int i = 0; i < arHits.Count; i++)
                     {
-                        floorY = hitY;
-                        foundFloor = true;
-                        break;
+                        float hitY = arHits[i].pose.position.y;
+                        float hitDist = arHits[i].distance;
+
+                        // Si obstacle surélevé (table/chaise/meuble > camY - 0.85m) à courte distance (< 2.6m)
+                        if (hitY > camY - 0.85f && hitDist < 2.6f)
+                        {
+                            hasCloseObstacle = true;
+                            obstacleReason = "Obstacle surélevé détecté devant la caméra";
+                            break;
+                        }
+                        else if (hitY <= camY - 0.85f)
+                        {
+                            hasValidClearFloor = true;
+                            if (hitY < bestFloorY) bestFloorY = hitY;
+                        }
+                    }
+                }
+                if (hasCloseObstacle) break;
+            }
+        }
+
+        // 2. Parcourir les plans horizontaux détectés
+        if (planeManager != null && planeManager.trackables.count > 0)
+        {
+            foreach (ARPlane plane in planeManager.trackables)
+            {
+                if (plane == null || !plane.gameObject.activeInHierarchy) continue;
+
+                ApplySafePlaneVisual(plane, !IsFloorCalibrated);
+
+                if (plane.alignment != PlaneAlignment.HorizontalUp) continue;
+
+                float py = plane.transform.position.y;
+                float distFromCam = playerCam != null ? Vector3.Distance(playerCam.position, plane.transform.position) : 3f;
+
+                if (py > camY - 0.85f && distFromCam < 2.4f)
+                {
+                    hasCloseObstacle = true;
+                    obstacleReason = "Surface de meuble proche détectée";
+                    break;
+                }
+                else if (py <= camY - 0.85f)
+                {
+                    if (py < bestFloorY)
+                    {
+                        bestFloorY = py;
+                        hasValidClearFloor = true;
                     }
                 }
             }
         }
 
-        // 2. Parcourir les plans AR horizontaux (PlaneAlignment.HorizontalUp) pour prendre le plus bas (le vrai sol de la pièce)
-        if (planeManager != null && planeManager.trackables.count > 0)
+        if (hasCloseObstacle)
         {
-            float lowestY = float.MaxValue;
-            foreach (ARPlane plane in planeManager.trackables)
-            {
-                if (plane == null || !plane.gameObject.activeInHierarchy)
-                    continue;
-
-                ApplySafePlaneVisual(plane, !IsFloorCalibrated);
-
-                if (plane.alignment != PlaneAlignment.HorizontalUp)
-                    continue;
-
-                float py = plane.transform.position.y;
-                if (py <= camY - 0.85f && py < lowestY)
-                {
-                    lowestY = py;
-                }
-            }
-
-            if (lowestY < float.MaxValue)
-            {
-                floorY = foundFloor ? Mathf.Min(floorY, lowestY) : lowestY;
-                foundFloor = true;
-            }
+            return EnvironmentScanState.ObstacleTooClose;
         }
 
-        // Sécurité absolue : maintenir le sol dans une plage réaliste sous la caméra (jamais à hauteur des yeux !)
-        floorY = Mathf.Clamp(floorY, camY - 1.85f, camY - 1.20f);
-        return foundFloor;
+        if (hasValidClearFloor && bestFloorY < float.MaxValue)
+        {
+            detectedFloorY = Mathf.Clamp(bestFloorY, camY - 1.85f, camY - 1.20f);
+            return EnvironmentScanState.AnalyzingClearSpace;
+        }
+
+        return EnvironmentScanState.SearchingFloor;
+    }
+
+    private bool TryFindLowestHorizontalFloorY(out float floorY)
+    {
+        EnvironmentScanState state = AnalyzeEnvironment(out floorY, out _);
+        return state == EnvironmentScanState.AnalyzingClearSpace || state == EnvironmentScanState.ReadyToFight;
     }
 
     private IEnumerator FloorScanThenSpawnRoutine()
@@ -252,43 +299,84 @@ public class ARZombieSpawner : MonoBehaviour
         float scanProgress = 0f;
         float candidateFloorY = (playerCam != null ? playerCam.position.y : 0f) - DefaultCameraToFloorHeight;
         bool foundRealPlane = false;
-
-        float requiredScanTime = Application.isEditor ? 1.0f : 1.8f;
+        float requiredScanTime = Application.isEditor ? 1.0f : 2.5f;
 
         while (scanProgress < 1f && !manualFloorConfirmRequested)
         {
             FindPlayerCamera();
 
-            if (TryFindLowestHorizontalFloorY(out float detectedY))
-            {
-                candidateFloorY = detectedY;
-                foundRealPlane = true;
-                scanProgress += Time.deltaTime / requiredScanTime;
+            EnvironmentScanState scanState = AnalyzeEnvironment(out float detectedY, out string obstacleReason);
 
-                if (scanStatusText != null)
-                {
-                    scanStatusText.text =
-                        $"<color=#55FF77>✓ SOL DÉGAGÉ DÉTECTÉ !</color>\nVerrouillage du terrain ({Mathf.Clamp01(scanProgress) * 100f:F0}%)... Préparez-vous !";
-                }
-            }
-            else if (Application.isEditor)
+            switch (scanState)
             {
-                scanProgress += Time.deltaTime / requiredScanTime;
-                if (scanStatusText != null)
-                {
-                    scanStatusText.text = $"Calibrage du sol ({Mathf.Clamp01(scanProgress) * 100f:F0}%)...";
-                }
-            }
-            else
-            {
-                // Tant qu'un vrai sol horizontal n'est pas détecté, on plafonne la barre à 75%
-                // pour laisser le joueur se déplacer vers une zone vide ou cliquer sur le bouton
-                scanProgress = Mathf.Min(0.75f, scanProgress + Time.deltaTime * 0.15f);
-                if (scanStatusText != null)
-                {
-                    scanStatusText.text =
-                        "Déplacez-vous vers un espace vide au sol pour commencer à jouer.\n<size=19><color=#FFDD55>Pointez la caméra vers le sol libre devant vous</color></size>";
-                }
+                case EnvironmentScanState.ObstacleTooClose:
+                    // Obstacle détecté devant le joueur (< 2.6m)
+                    scanProgress = Mathf.Max(0.05f, scanProgress - Time.deltaTime * 0.35f);
+                    if (scanCardOutline != null) scanCardOutline.effectColor = new Color(1f, 0.35f, 0.2f, 0.95f);
+                    if (scanTitleText != null)
+                    {
+                        scanTitleText.text = $"⚠️ OBSTACLE TROP PROCHE DÉTECTÉ";
+                        scanTitleText.color = new Color(1f, 0.45f, 0.3f, 1f);
+                    }
+                    if (scanStatusText != null)
+                    {
+                        scanStatusText.text =
+                            $"<color=#FF5533>Surface ou meuble détecté devant vous !</color>\n<size=18><color=#FFAA88>Déplacez-vous ou pointez vers un espace vide sans obstacles.</color></size>";
+                    }
+                    if (scanProgressFill != null)
+                    {
+                        scanProgressFill.color = new Color(1f, 0.4f, 0.2f, 1f);
+                    }
+                    if (validateBtnText != null) validateBtnText.text = "LANCER MANUELLEMENT";
+                    if (validateBtnImg != null) validateBtnImg.color = new Color(0.45f, 0.25f, 0.2f, 0.95f);
+                    break;
+
+                case EnvironmentScanState.SearchingFloor:
+                    // En attente : caméra en l'air ou sol non encore trouvé
+                    scanProgress = Mathf.Min(0.20f, scanProgress + Time.deltaTime * 0.05f);
+                    if (scanCardOutline != null) scanCardOutline.effectColor = new Color(0.95f, 0.75f, 0.15f, 0.95f);
+                    if (scanTitleText != null)
+                    {
+                        scanTitleText.text = $"🚶 ÉTAPE 1 : TROUVEZ UN ESPACE DÉGAGÉ";
+                        scanTitleText.color = new Color(1f, 0.88f, 0.35f, 1f);
+                    }
+                    if (scanStatusText != null)
+                    {
+                        scanStatusText.text =
+                            "Déplacez-vous vers une zone vide (au moins 2 à 3 mètres libres).\n<size=18><color=#FFDD55>Pointez la caméra vers le sol dégagé devant vous...</color></size>";
+                    }
+                    if (scanProgressFill != null)
+                    {
+                        scanProgressFill.color = new Color(0.9f, 0.75f, 0.2f, 1f);
+                    }
+                    if (validateBtnText != null) validateBtnText.text = "SOL PRÊT - COMMENCER";
+                    if (validateBtnImg != null) validateBtnImg.color = new Color(0.25f, 0.35f, 0.25f, 0.95f);
+                    break;
+
+                case EnvironmentScanState.AnalyzingClearSpace:
+                    // Sol horizontal bas détecté et aucun obstacle proche
+                    candidateFloorY = detectedY;
+                    foundRealPlane = true;
+                    scanProgress += Time.deltaTime / requiredScanTime;
+
+                    if (scanCardOutline != null) scanCardOutline.effectColor = new Color(0.2f, 0.85f, 0.7f, 1f);
+                    if (scanTitleText != null)
+                    {
+                        scanTitleText.text = $"🔍 ÉTAPE 2 : ANALYSE DU SOL EN COURS";
+                        scanTitleText.color = new Color(0.35f, 0.92f, 1f, 1f);
+                    }
+                    if (scanStatusText != null)
+                    {
+                        scanStatusText.text =
+                            $"<color=#55FF88>✓ Sol plat et espace dégagé détectés !</color>\n<size=18><color=#DDFFDD>Analyse du terrain... {Mathf.Clamp01(scanProgress) * 100f:F0}% (maintenez stable)</color></size>";
+                    }
+                    if (scanProgressFill != null)
+                    {
+                        scanProgressFill.color = new Color(0.2f, 0.9f, 0.45f, 1f);
+                    }
+                    if (validateBtnText != null) validateBtnText.text = "VALIDER ET JOUER";
+                    if (validateBtnImg != null) validateBtnImg.color = new Color(0.15f, 0.62f, 0.32f, 1f);
+                    break;
             }
 
             if (scanProgressFill != null)
@@ -297,6 +385,31 @@ public class ARZombieSpawner : MonoBehaviour
             }
 
             yield return null;
+        }
+
+        // Étape 3 : Confirmation & Verrouillage
+        if (scanCardOutline != null) scanCardOutline.effectColor = new Color(0.1f, 1f, 0.5f, 1f);
+        if (scanTitleText != null)
+        {
+            scanTitleText.text = $"✅ ZONE SÉCURISÉE & VALIDÉE !";
+            scanTitleText.color = new Color(0.3f, 1f, 0.6f, 1f);
+        }
+        if (scanStatusText != null)
+        {
+            scanStatusText.text =
+                $"<color=#55FF77>✓ Terrain libre verrouillé !</color>\n<size=19><color=#FFFFFF>Lancement du combat... Préparez-vous !</color></size>";
+        }
+        if (scanProgressFill != null)
+        {
+            scanProgressFill.fillAmount = 1f;
+            scanProgressFill.color = new Color(0.15f, 1f, 0.5f, 1f);
+        }
+        if (validateBtnText != null) validateBtnText.text = "⚔️ COMBAT PRÊT !";
+        if (validateBtnImg != null) validateBtnImg.color = new Color(0.1f, 0.8f, 0.35f, 1f);
+
+        if (!manualFloorConfirmRequested)
+        {
+            yield return new WaitForSeconds(1.15f);
         }
 
         FindPlayerCamera();
@@ -501,23 +614,25 @@ public class ARZombieSpawner : MonoBehaviour
         cardBg.color = new Color(0.04f, 0.05f, 0.08f, 0.92f);
 
         var outline = card.gameObject.AddComponent<Outline>();
-        outline.effectColor = new Color(0.25f, 0.85f, 1f, 0.9f);
+        outline.effectColor = new Color(0.95f, 0.75f, 0.15f, 0.95f);
         outline.effectDistance = new Vector2(2f, -2f);
+        scanCardOutline = outline;
 
         // Titre
         var titleGo = new GameObject("Title", typeof(RectTransform));
         titleGo.transform.SetParent(card, false);
         var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
         titleTmp.font = font;
-        titleTmp.text = $"⚠️ ZONE LIBRE REQUISE (NIVEAU {QuestARLevelManager.CurrentLevel})";
+        titleTmp.text = $"🚶 ÉTAPE 1 : TROUVEZ UN ESPACE DÉGAGÉ (NIV {QuestARLevelManager.CurrentLevel})";
         titleTmp.fontSize = 28f;
         titleTmp.fontStyle = FontStyles.Bold;
         titleTmp.alignment = TextAlignmentOptions.Center;
-        titleTmp.color = new Color(1f, 0.85f, 0.25f, 1f);
+        titleTmp.color = new Color(1f, 0.88f, 0.35f, 1f);
         titleTmp.rectTransform.anchorMin = new Vector2(0f, 0.72f);
         titleTmp.rectTransform.anchorMax = new Vector2(1f, 0.96f);
         titleTmp.rectTransform.offsetMin = Vector2.zero;
         titleTmp.rectTransform.offsetMax = Vector2.zero;
+        scanTitleText = titleTmp;
 
         // Texte d'instruction
         var statusGo = new GameObject("Status", typeof(RectTransform));
@@ -562,7 +677,8 @@ public class ARZombieSpawner : MonoBehaviour
         validateFloorBtnRect.anchorMin = validateFloorBtnRect.anchorMax = new Vector2(0.5f, 0.12f);
         validateFloorBtnRect.sizeDelta = new Vector2(460f, 54f);
         var btnImg = btnGo.AddComponent<Image>();
-        btnImg.color = new Color(0.15f, 0.62f, 0.32f, 1f);
+        btnImg.color = new Color(0.25f, 0.35f, 0.25f, 0.95f);
+        validateBtnImg = btnImg;
         var btn = btnGo.AddComponent<Button>();
         btn.targetGraphic = btnImg;
         btn.onClick.AddListener(() => { manualFloorConfirmRequested = true; });
@@ -572,7 +688,7 @@ public class ARZombieSpawner : MonoBehaviour
         btnTxtGo.transform.SetParent(validateFloorBtnRect, false);
         var btnTxt = btnTxtGo.AddComponent<TextMeshProUGUI>();
         btnTxt.font = font;
-        btnTxt.text = "ZONE DÉGAGÉE PRÊTE - JOUER";
+        btnTxt.text = "SOL PRÊT - COMMENCER";
         btnTxt.fontSize = 21f;
         btnTxt.fontStyle = FontStyles.Bold;
         btnTxt.alignment = TextAlignmentOptions.Center;
@@ -582,6 +698,7 @@ public class ARZombieSpawner : MonoBehaviour
         btnTxt.rectTransform.anchorMax = Vector2.one;
         btnTxt.rectTransform.offsetMin = Vector2.zero;
         btnTxt.rectTransform.offsetMax = Vector2.zero;
+        validateBtnText = btnTxt;
     }
 
     private int CleanAndCountZombies()
