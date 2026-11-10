@@ -40,7 +40,7 @@ PlayerSettings:
     width: 1
     height: 1
   m_SplashScreenLogos:
-  - logo: {fileID: 21300000, guid: b9781364b396516439b0def61a5a0cf5, type: 3}
+  - logo: {fileID: 21300000, guid: 19ded7c711d3bdf42ac5200d1e91c465, type: 3}
     duration: 3
   m_VirtualRealitySplashScreen: {fileID: 0}
   defaultScreenWidth: 1024
@@ -314,33 +314,43 @@ PlayerSettings:
   - m_BuildTarget: Android
     m_Icons:
     - m_Textures:
-      - {fileID: 2800000, guid: df5923a8bfa0dde469a0becee3007418, type: 3}
-      - {fileID: 0}
+      - {fileID: 2800000, guid: 626e6df5d1977c2448074688288c5722, type: 3}
+      - {fileID: 2800000, guid: 25b4a33e3d9d68a46a6e9bf0813fdd59, type: 3}
       m_Width: 432
       m_Height: 432
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: 626e6df5d1977c2448074688288c5722, type: 3}
+      - {fileID: 2800000, guid: 25b4a33e3d9d68a46a6e9bf0813fdd59, type: 3}
       m_Width: 324
       m_Height: 324
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: 626e6df5d1977c2448074688288c5722, type: 3}
+      - {fileID: 2800000, guid: 25b4a33e3d9d68a46a6e9bf0813fdd59, type: 3}
       m_Width: 216
       m_Height: 216
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: 626e6df5d1977c2448074688288c5722, type: 3}
+      - {fileID: 2800000, guid: 25b4a33e3d9d68a46a6e9bf0813fdd59, type: 3}
       m_Width: 162
       m_Height: 162
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: 626e6df5d1977c2448074688288c5722, type: 3}
+      - {fileID: 2800000, guid: 25b4a33e3d9d68a46a6e9bf0813fdd59, type: 3}
       m_Width: 108
       m_Height: 108
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: 626e6df5d1977c2448074688288c5722, type: 3}
+      - {fileID: 2800000, guid: 25b4a33e3d9d68a46a6e9bf0813fdd59, type: 3}
       m_Width: 81
       m_Height: 81
       m_Kind: 2
